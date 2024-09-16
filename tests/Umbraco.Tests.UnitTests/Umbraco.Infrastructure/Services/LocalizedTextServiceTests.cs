@@ -5,9 +5,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using Umbraco.Cms.Core.Composing;
 using Umbraco.Cms.Core.Services;
 
 namespace Umbraco.Cms.Tests.UnitTests.Umbraco.Infrastructure.Services;
@@ -375,5 +377,38 @@ public class LocalizedTextServiceTests
             s_loggerFactory.CreateLogger<LocalizedTextService>());
 
         Assert.AreEqual("[testKey]", txtService.Localize("testArea/testKey", CultureInfo.GetCultureInfo("en-AU")));
+    }
+
+    [Test]
+    public void Load_Embed_Translations()
+    {
+        var languageProvider = new EmbeddedFileProvider(typeof(IAssemblyProvider).Assembly, "Umbraco.Cms.Core.EmbeddedResources.Lang");
+        var fileInfos = languageProvider.GetDirectoryContents(string.Empty)
+                        .Where(x => !x.IsDirectory && x.Name.EndsWith(".xml"));
+        var cultureDictionary = new Dictionary<CultureInfo, Lazy<XDocument>>();
+        foreach (var languageFile in fileInfos)
+        {
+            using var stream = new StreamReader(languageFile.CreateReadStream());
+            XDocument xmlDoc = XDocument.Load(stream);
+
+            var languageElement = xmlDoc.Element("language");
+            var cultureKey = languageElement?.Attribute("culture")?.Value;
+            var culture = CultureInfo.GetCultureInfo(cultureKey);
+
+
+            cultureDictionary.Add(culture, new Lazy<XDocument>(() => xmlDoc));
+        }
+
+        var txtService = new LocalizedTextService(cultureDictionary, s_loggerFactory.CreateLogger<LocalizedTextService>());
+
+        foreach(var culture in cultureDictionary.Keys)
+        {
+            var result = txtService.GetAllStoredValues(culture);
+            Assert.Greater(result.Count(), 0);
+
+            var word = txtService.Localize("general", "ok", culture);
+            Assert.IsNotNull(word);
+            Assert.IsNotEmpty(word);
+        }
     }
 }

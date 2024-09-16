@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Xml.Linq;
 using System.Xml.XPath;
@@ -8,36 +9,30 @@ namespace Umbraco.Cms.Core.Services;
 /// <inheritdoc />
 public class LocalizedTextService : ILocalizedTextService
 {
-    private readonly Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>>
-        _dictionarySourceLazy;
-
+    private readonly Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>> _dictionarySourceLazy;
     private readonly Lazy<LocalizedTextServiceFileSources>? _fileSources;
     private readonly ILogger<LocalizedTextService> _logger;
-
     private readonly Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, string>>>> _noAreaDictionarySourceLazy;
+
+    private IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> DictionarySource => _dictionarySourceLazy.Value;
+    private IDictionary<CultureInfo, Lazy<IDictionary<string, string>>> NoAreaDictionarySource => _noAreaDictionarySourceLazy.Value;
+
 
     /// <summary>
     ///     Initializes with a file sources instance
     /// </summary>
     /// <param name="fileSources"></param>
     /// <param name="logger"></param>
-    public LocalizedTextService(
-        Lazy<LocalizedTextServiceFileSources> fileSources,
-        ILogger<LocalizedTextService> logger)
+    public LocalizedTextService(Lazy<LocalizedTextServiceFileSources> fileSources, ILogger<LocalizedTextService> logger)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        if (fileSources == null)
-        {
-            throw new ArgumentNullException(nameof(fileSources));
-        }
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(fileSources);
 
-        _dictionarySourceLazy =
-            new Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>>(() =>
-                FileSourcesToAreaDictionarySources(fileSources.Value));
-        _noAreaDictionarySourceLazy =
-            new Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, string>>>>(() =>
-                FileSourcesToNoAreaDictionarySources(fileSources.Value));
+        _logger = logger;
         _fileSources = fileSources;
+
+        _dictionarySourceLazy = CreateDictionarySourceLazy(() => FileSourcesToAreaDictionarySources(fileSources.Value));
+        _noAreaDictionarySourceLazy = CreateNoAreaDictionarySourceLazy(() => FileSourcesToNoAreaDictionarySources(fileSources.Value));
     }
 
     /// <summary>
@@ -45,70 +40,78 @@ public class LocalizedTextService : ILocalizedTextService
     /// </summary>
     /// <param name="source"></param>
     /// <param name="logger"></param>
-    public LocalizedTextService(
-        IDictionary<CultureInfo, Lazy<XDocument>> source,
-        ILogger<LocalizedTextService> logger)
+    public LocalizedTextService(IDictionary<CultureInfo, Lazy<XDocument>> source, ILogger<LocalizedTextService> logger)
     {
-        if (source == null)
-        {
-            throw new ArgumentNullException(nameof(source));
-        }
+        ArgumentNullException.ThrowIfNull(logger);
 
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-        _dictionarySourceLazy =
-            new Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>>(() =>
-                XmlSourcesToAreaDictionary(source));
-        _noAreaDictionarySourceLazy =
-            new Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, string>>>>(() =>
-                XmlSourceToNoAreaDictionary(source));
+        _logger = logger;
+        _dictionarySourceLazy = CreateDictionarySourceLazy(() => XmlSourcesToAreaDictionary(source));
+        _noAreaDictionarySourceLazy = CreateNoAreaDictionarySourceLazy(() => XmlSourceToNoAreaDictionary(source));
     }
 
-        /// <summary>
-        /// Initializes with a source of a dictionary of culture -> areas -> sub dictionary of keys/values
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="logger"></param>
-        public LocalizedTextService(
-            IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> source,
-            ILogger<LocalizedTextService> logger)
-        {
-            IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> dictionarySource =
-            source ?? throw new ArgumentNullException(nameof(source));
-        _dictionarySourceLazy =
-            new Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>>(() =>
-                dictionarySource);
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    /// <summary>
+    /// Initializes with a source of a dictionary of culture -> areas -> sub dictionary of keys/values
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="logger"></param>
+    public LocalizedTextService(IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> source, ILogger<LocalizedTextService> logger)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _logger = logger;
+        _dictionarySourceLazy = CreateDictionarySourceLazy(() => source);
+        _noAreaDictionarySourceLazy = CreateNoAreaDictionarySourceLazy(() => CreateNoAreaDictionary(source));
+    }
+
+    private Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>> CreateDictionarySourceLazy(Func<IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>> factory)
+    {
+        return new Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>>(factory);
+    }
+
+    private Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, string>>>> CreateNoAreaDictionarySourceLazy(Func<IDictionary<CultureInfo, Lazy<IDictionary<string, string>>>> factory)
+    {
+        return new Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, string>>>>(factory);
+    }
+
+    private IDictionary<CultureInfo, Lazy<IDictionary<string, string>>> CreateNoAreaDictionary(IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> source)
+    {
         var cultureNoAreaDictionary = new Dictionary<CultureInfo, Lazy<IDictionary<string, string>>>();
-        foreach (KeyValuePair<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> cultureDictionary in
-                 dictionarySource)
-        {
-            Dictionary<string, IDictionary<string, string>> areaAliaValue =
-                GetAreaStoredTranslations(source, cultureDictionary.Key);
 
-            cultureNoAreaDictionary.Add(
-                cultureDictionary.Key,
-                new Lazy<IDictionary<string, string>>(() => GetAliasValues(areaAliaValue)));
+        foreach (KeyValuePair<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> cultureDictionary in source)
+        {
+            Dictionary<string, IDictionary<string, string>> areaAliaValue = GetAreaStoredTranslations(source, cultureDictionary.Key);
+            cultureNoAreaDictionary[cultureDictionary.Key] = new Lazy<IDictionary<string, string>>(() => GetAliasValues(areaAliaValue));
         }
 
-        _noAreaDictionarySourceLazy =
-            new Lazy<IDictionary<CultureInfo, Lazy<IDictionary<string, string>>>>(() => cultureNoAreaDictionary);
+        return cultureNoAreaDictionary;
     }
 
-    private IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> DictionarySource =>
-        _dictionarySourceLazy.Value;
-
-    private IDictionary<CultureInfo, Lazy<IDictionary<string, string>>> NoAreaDictionarySource =>
-        _noAreaDictionarySourceLazy.Value;
-
-    public string Localize(string? area, string? alias, CultureInfo? culture, IDictionary<string, string?>? tokens = null)
+    /// <summary>
+    /// Localizes a key with the specified culture in format of {area}/{alias}
+    /// </summary>
+    public string Localize(string key, CultureInfo culture, IDictionary<string, string?>? tokens = null)
     {
-        if (culture == null)
-        {
-            throw new ArgumentNullException(nameof(culture));
-        }
+        ArgumentNullException.ThrowIfNull(culture);
 
         // This is what the legacy ui service did
+        if (string.IsNullOrEmpty(key))
+        {
+            return string.Empty;
+        }
+
+        var keyParts = key.Split(Constants.CharArrays.ForwardSlash, StringSplitOptions.RemoveEmptyEntries);
+        var area = keyParts.Length > 1 ? keyParts[0] : null;
+        var alias = keyParts.Length > 1 ? keyParts[1] : keyParts[0];
+        return Localize(area, alias, culture, tokens);
+    }
+
+    /// <summary>
+    /// Localizes a key with the specified culture
+    /// </summary>
+    public string Localize(string? area, string? alias, CultureInfo? culture, IDictionary<string, string?>? tokens = null)
+    {
+        ArgumentNullException.ThrowIfNull(culture);
+
         if (string.IsNullOrEmpty(alias))
         {
             return string.Empty;
@@ -125,40 +128,52 @@ public class LocalizedTextService : ILocalizedTextService
     /// </summary>
     public IDictionary<string, string> GetAllStoredValues(CultureInfo culture)
     {
-        if (culture == null)
-        {
-            throw new ArgumentNullException(nameof(culture));
-        }
+        ArgumentNullException.ThrowIfNull(culture);
 
         // TODO: Hack, see notes on ConvertToSupportedCultureWithRegionCode
         culture = ConvertToSupportedCultureWithRegionCode(culture);
 
-        if (DictionarySource.ContainsKey(culture) == false)
+        if (!DictionarySource.TryGetValue(culture, out Lazy<IDictionary<string, IDictionary<string, string>>>? cultureDictionary))
         {
-            _logger.LogWarning(
-                "The culture specified {Culture} was not found in any configured sources for this service",
-                culture);
-            return new Dictionary<string, string>(0);
+            LogWarning($"The culture specified {culture} was not found in any configured sources for this service");
+            return ReadOnlyDictionary<string, string>.Empty;
         }
 
-        IDictionary<string, string> result = new Dictionary<string, string>();
+        var result = new Dictionary<string, string>();
 
         // convert all areas + keys to a single key with a '/'
-        foreach (KeyValuePair<string, IDictionary<string, string>> area in DictionarySource[culture].Value)
+
+        foreach (KeyValuePair<string, IDictionary<string, string>> area in cultureDictionary.Value)
         {
             foreach (KeyValuePair<string, string> key in area.Value)
             {
-                var dictionaryKey = string.Format("{0}/{1}", area.Key, key.Key);
-
                 // i don't think it's possible to have duplicates because we're dealing with a dictionary in the first place, but we'll double check here just in case.
-                if (result.ContainsKey(dictionaryKey) == false)
-                {
-                    result.Add(dictionaryKey, key.Value);
-                }
+                _ = result.TryAdd($"{area.Key}/{key.Key}", key.Value);
             }
         }
 
         return result;
+    }
+
+
+    /// <summary>
+    ///     Returns all key/values in storage for the given culture
+    /// </summary>
+    /// <returns></returns>
+    public IDictionary<string, IDictionary<string, string>> GetAllStoredValuesByAreaAndAlias(CultureInfo culture)
+    {
+        ArgumentNullException.ThrowIfNull(culture);
+
+        // TODO: Hack, see notes on ConvertToSupportedCultureWithRegionCode
+        culture = ConvertToSupportedCultureWithRegionCode(culture);
+
+        if (!DictionarySource.TryGetValue(culture, out Lazy<IDictionary<string, IDictionary<string, string>>>? cultureDictionary))
+        {
+            LogWarning($"The culture specified {culture} was not found in any configured sources for this service");
+            return ReadOnlyDictionary<string, IDictionary<string, string>>.Empty;
+        }
+
+        return cultureDictionary.Value;
     }
 
     /// <summary>
@@ -185,69 +200,19 @@ public class LocalizedTextService : ILocalizedTextService
     /// </remarks>
     public CultureInfo ConvertToSupportedCultureWithRegionCode(CultureInfo currentCulture)
     {
-        if (currentCulture == null)
-        {
-            throw new ArgumentNullException("currentCulture");
-        }
+        ArgumentNullException.ThrowIfNull(currentCulture);
 
-        if (_fileSources == null)
+        if (_fileSources == null || currentCulture.Name.Length > 2)
         {
             return currentCulture;
         }
 
-        if (currentCulture.Name.Length > 2)
-        {
-            return currentCulture;
-        }
-
-        Attempt<CultureInfo?> attempt =
-            _fileSources.Value.TryConvert2LetterCultureTo4Letter(currentCulture.TwoLetterISOLanguageName);
+        Attempt<CultureInfo?> attempt = _fileSources.Value.TryConvert2LetterCultureTo4Letter(currentCulture.TwoLetterISOLanguageName);
         return attempt.Success ? attempt.Result! : currentCulture;
     }
 
-    /// <summary>
-    ///     Returns all key/values in storage for the given culture
-    /// </summary>
-    /// <returns></returns>
-    public IDictionary<string, IDictionary<string, string>> GetAllStoredValuesByAreaAndAlias(CultureInfo culture)
-    {
-        if (culture == null)
-        {
-            throw new ArgumentNullException("culture");
-        }
 
-        // TODO: Hack, see notes on ConvertToSupportedCultureWithRegionCode
-        culture = ConvertToSupportedCultureWithRegionCode(culture);
-
-        if (DictionarySource.ContainsKey(culture) == false)
-        {
-            _logger.LogWarning(
-                "The culture specified {Culture} was not found in any configured sources for this service",
-                culture);
-            return new Dictionary<string, IDictionary<string, string>>(0);
-        }
-
-        return DictionarySource[culture].Value;
-    }
-
-    public string Localize(string key, CultureInfo culture, IDictionary<string, string?>? tokens = null)
-    {
-        if (culture == null)
-        {
-            throw new ArgumentNullException(nameof(culture));
-        }
-
-        // This is what the legacy ui service did
-        if (string.IsNullOrEmpty(key))
-        {
-            return string.Empty;
-        }
-
-        var keyParts = key.Split(Constants.CharArrays.ForwardSlash, StringSplitOptions.RemoveEmptyEntries);
-        var area = keyParts.Length > 1 ? keyParts[0] : null;
-        var alias = keyParts.Length > 1 ? keyParts[1] : keyParts[0];
-        return Localize(area, alias, culture, tokens);
-    }
+    
 
     /// <summary>
     ///     Parses the tokens in the value
@@ -267,91 +232,79 @@ public class LocalizedTextService : ILocalizedTextService
     /// </remarks>
     internal static string ParseTokens(string value, IDictionary<string, string?>? tokens)
     {
-        if (tokens == null || tokens.Any() == false)
+        if (tokens == null || !tokens.Any())
         {
             return value;
         }
 
         foreach (KeyValuePair<string, string?> token in tokens)
         {
-            value = value.Replace(string.Concat("%", token.Key, "%"), token.Value);
+            value = value.Replace($"%{token.Key}%", token.Value);
         }
 
         return value;
     }
 
-    private static Dictionary<string, string> GetAliasValues(
-        Dictionary<string, IDictionary<string, string>> areaAliaValue)
+    private static Dictionary<string, string> GetAliasValues(Dictionary<string, IDictionary<string, string>> areaAliaValue)
     {
         var aliasValue = new Dictionary<string, string>();
         foreach (KeyValuePair<string, IDictionary<string, string>> area in areaAliaValue)
         {
             foreach (KeyValuePair<string, string> alias in area.Value)
             {
-                if (!aliasValue.ContainsKey(alias.Key))
-                {
-                    aliasValue.Add(alias.Key, alias.Value);
-                }
+                _ = aliasValue.TryAdd(alias.Key, alias.Value);
             }
         }
 
         return aliasValue;
     }
 
-    private IDictionary<CultureInfo, Lazy<IDictionary<string, string>>> FileSourcesToNoAreaDictionarySources(
-        LocalizedTextServiceFileSources fileSources)
+    private IDictionary<CultureInfo, Lazy<IDictionary<string, string>>> FileSourcesToNoAreaDictionarySources(LocalizedTextServiceFileSources fileSources)
     {
         IDictionary<CultureInfo, Lazy<XDocument>> xmlSources = fileSources.GetXmlSources();
-
         return XmlSourceToNoAreaDictionary(xmlSources);
     }
 
-    private IDictionary<CultureInfo, Lazy<IDictionary<string, string>>> XmlSourceToNoAreaDictionary(
-        IDictionary<CultureInfo, Lazy<XDocument>> xmlSources)
+    private IDictionary<CultureInfo, Lazy<IDictionary<string, string>>> XmlSourceToNoAreaDictionary(IDictionary<CultureInfo, Lazy<XDocument>> xmlSources)
     {
         var cultureNoAreaDictionary = new Dictionary<CultureInfo, Lazy<IDictionary<string, string>>>();
+
         foreach (KeyValuePair<CultureInfo, Lazy<XDocument>> xmlSource in xmlSources)
         {
-            var noAreaAliasValue =
-                new Lazy<IDictionary<string, string>>(() => GetNoAreaStoredTranslations(xmlSources, xmlSource.Key));
-            cultureNoAreaDictionary.Add(xmlSource.Key, noAreaAliasValue);
+            var noAreaAliasValue = new Lazy<IDictionary<string, string>>(() => GetNoAreaStoredTranslations(xmlSources, xmlSource.Key));
+            cultureNoAreaDictionary[xmlSource.Key] = noAreaAliasValue;
         }
 
         return cultureNoAreaDictionary;
     }
 
-    private IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>
-        FileSourcesToAreaDictionarySources(LocalizedTextServiceFileSources fileSources)
+    private IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> FileSourcesToAreaDictionarySources(LocalizedTextServiceFileSources fileSources)
     {
         IDictionary<CultureInfo, Lazy<XDocument>> xmlSources = fileSources.GetXmlSources();
         return XmlSourcesToAreaDictionary(xmlSources);
     }
 
-    private IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>
-        XmlSourcesToAreaDictionary(IDictionary<CultureInfo, Lazy<XDocument>> xmlSources)
+    private IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> XmlSourcesToAreaDictionary(IDictionary<CultureInfo, Lazy<XDocument>> xmlSources)
     {
-        var cultureDictionary =
-            new Dictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>();
+        var cultureDictionary = new Dictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>>();
+
         foreach (KeyValuePair<CultureInfo, Lazy<XDocument>> xmlSource in xmlSources)
         {
-            var areaAliaValue =
-                new Lazy<IDictionary<string, IDictionary<string, string>>>(() =>
-                    GetAreaStoredTranslations(xmlSources, xmlSource.Key));
-            cultureDictionary.Add(xmlSource.Key, areaAliaValue);
+            var areaAliaValue = new Lazy<IDictionary<string, IDictionary<string, string>>>(() => GetAreaStoredTranslations(xmlSources, xmlSource.Key));
+            cultureDictionary[xmlSource.Key] = areaAliaValue;
         }
 
         return cultureDictionary;
     }
 
-    private IDictionary<string, IDictionary<string, string>> GetAreaStoredTranslations(
-        IDictionary<CultureInfo, Lazy<XDocument>> xmlSource, CultureInfo cult)
+    private IDictionary<string, IDictionary<string, string>> GetAreaStoredTranslations(IDictionary<CultureInfo, Lazy<XDocument>> xmlSource, CultureInfo cult)
     {
         var overallResult = new Dictionary<string, IDictionary<string, string>>(StringComparer.InvariantCulture);
         IEnumerable<XElement> areas = xmlSource[cult].Value.XPathSelectElements("//area");
+
         foreach (XElement area in areas)
         {
-            var areaAlias = area.Attribute("alias")!.Value;
-
+            var areaAlias = area.GetAlias();
             if (!overallResult.TryGetValue(areaAlias, out IDictionary<string, string>? result))
             {
                 result = new Dictionary<string, string>(StringComparer.InvariantCulture);
@@ -360,102 +313,64 @@ public class LocalizedTextService : ILocalizedTextService
             IEnumerable<XElement> keys = area.XPathSelectElements("./key");
             foreach (XElement key in keys)
             {
-                var dictionaryKey =
-                    (string)key.Attribute("alias")!;
-
                 // there could be duplicates if the language file isn't formatted nicely - which is probably the case for quite a few lang files
-                if (result.ContainsKey(dictionaryKey) == false)
-                {
-                    result.Add(dictionaryKey, key.Value);
-                }
+                _ = result.TryAdd(key.GetAlias(), key.Value);
             }
 
-            if (!overallResult.ContainsKey(areaAlias))
-            {
-                overallResult.Add(areaAlias, result);
-            }
+            _ = overallResult.TryAdd(areaAlias, result);
         }
 
-        // Merge English Dictionary
         var englishCulture = new CultureInfo("en-US");
         if (!cult.Equals(englishCulture))
         {
             IEnumerable<XElement> enUS = xmlSource[englishCulture].Value.XPathSelectElements("//area");
             foreach (XElement area in enUS)
             {
-                var areaAlias = area.Attribute("alias")!.Value;
-
+                var areaAlias = area.GetAlias();
                 if (!overallResult.TryGetValue(areaAlias, out IDictionary<string, string>? result))
                 {
                     result = new Dictionary<string, string>(StringComparer.InvariantCulture);
                 }
 
                 IEnumerable<XElement> keys = area.XPathSelectElements("./key");
+
                 foreach (XElement key in keys)
                 {
-                    var dictionaryKey =
-                        (string)key.Attribute("alias")!;
-
-                    // there could be duplicates if the language file isn't formatted nicely - which is probably the case for quite a few lang files
-                    if (result.ContainsKey(dictionaryKey) == false)
-                    {
-                        result.Add(dictionaryKey, key.Value);
-                    }
+                    _ = result.TryAdd(key.GetAlias(), key.Value);
                 }
 
-                if (!overallResult.ContainsKey(areaAlias))
-                {
-                    overallResult.Add(areaAlias, result);
-                }
+                _ = overallResult.TryAdd(areaAlias, result);
             }
         }
 
         return overallResult;
     }
 
-    private Dictionary<string, string> GetNoAreaStoredTranslations(
-        IDictionary<CultureInfo, Lazy<XDocument>> xmlSource, CultureInfo cult)
+    private Dictionary<string, string> GetNoAreaStoredTranslations(IDictionary<CultureInfo, Lazy<XDocument>> xmlSource, CultureInfo cult)
     {
         var result = new Dictionary<string, string>(StringComparer.InvariantCulture);
         IEnumerable<XElement> keys = xmlSource[cult].Value.XPathSelectElements("//key");
 
         foreach (XElement key in keys)
         {
-            var dictionaryKey =
-                (string)key.Attribute("alias")!;
-
-            // there could be duplicates if the language file isn't formatted nicely - which is probably the case for quite a few lang files
-            if (result.ContainsKey(dictionaryKey) == false)
-            {
-                result.Add(dictionaryKey, key.Value);
-            }
+            _ = result.TryAdd(key.GetAlias(), key.Value);
         }
 
-        // Merge English Dictionary
         var englishCulture = new CultureInfo("en-US");
         if (!cult.Equals(englishCulture))
         {
             IEnumerable<XElement> keysEn = xmlSource[englishCulture].Value.XPathSelectElements("//key");
 
-            foreach (XElement key in keys)
+            foreach (XElement key in keysEn)
             {
-                var dictionaryKey =
-                    (string)key.Attribute("alias")!;
-
-                // there could be duplicates if the language file isn't formatted nicely - which is probably the case for quite a few lang files
-                if (result.ContainsKey(dictionaryKey) == false)
-                {
-                    result.Add(dictionaryKey, key.Value);
-                }
+                _ = result.TryAdd(key.GetAlias(), key.Value);
             }
         }
 
         return result;
     }
 
-    private Dictionary<string, IDictionary<string, string>> GetAreaStoredTranslations(
-        IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> dictionarySource,
-        CultureInfo cult)
+    private Dictionary<string, IDictionary<string, string>> GetAreaStoredTranslations(IDictionary<CultureInfo, Lazy<IDictionary<string, IDictionary<string, string>>>> dictionarySource, CultureInfo cult)
     {
         var overallResult = new Dictionary<string, IDictionary<string, string>>(StringComparer.InvariantCulture);
         Lazy<IDictionary<string, IDictionary<string, string>>> areaDict = dictionarySource[cult];
@@ -463,17 +378,13 @@ public class LocalizedTextService : ILocalizedTextService
         foreach (KeyValuePair<string, IDictionary<string, string>> area in areaDict.Value)
         {
             var result = new Dictionary<string, string>(StringComparer.InvariantCulture);
-            ICollection<string> keys = area.Value.Keys;
-            foreach (var key in keys)
+
+            foreach (var key in area.Value.Keys)
             {
-                // there could be duplicates if the language file isn't formatted nicely - which is probably the case for quite a few lang files
-                if (result.ContainsKey(key) == false)
-                {
-                    result.Add(key, area.Value[key]);
-                }
+                _ = result.TryAdd(key, area.Value[key]);
             }
 
-            overallResult.Add(area.Key, result);
+            overallResult[area.Key] = result;
         }
 
         return overallResult;
@@ -481,38 +392,50 @@ public class LocalizedTextService : ILocalizedTextService
 
     private string GetFromDictionarySource(CultureInfo culture, string? area, string key, IDictionary<string, string?>? tokens)
     {
-        if (DictionarySource.ContainsKey(culture) == false)
+        if (!DictionarySource.TryGetValue(culture, out Lazy<IDictionary<string, IDictionary<string, string>>>? cultureDictionary))
         {
-            _logger.LogWarning(
-                "The culture specified {Culture} was not found in any configured sources for this service",
-                culture);
-            return "[" + key + "]";
+            LogWarning($"The culture specified {culture} was not found in any configured sources for this service");
+            return $"[{key}]";
         }
 
         string? found = null;
         if (string.IsNullOrWhiteSpace(area))
         {
-            NoAreaDictionarySource[culture].Value.TryGetValue(key, out found);
+            _ = NoAreaDictionarySource[culture].Value.TryGetValue(key, out found);
         }
         else
         {
-            if (DictionarySource[culture].Value.TryGetValue(area, out IDictionary<string, string>? areaDictionary))
+            if (cultureDictionary.Value.TryGetValue(area, out IDictionary<string, string>? areaDictionary))
             {
-                areaDictionary.TryGetValue(key, out found);
+                _ = areaDictionary.TryGetValue(key, out found);
             }
 
             if (found == null)
             {
-                NoAreaDictionarySource[culture].Value.TryGetValue(key, out found);
+                _ = NoAreaDictionarySource[culture].Value.TryGetValue(key, out found);
             }
         }
 
-        if (found != null)
-        {
-            return ParseTokens(found, tokens);
-        }
-
-        // NOTE: Based on how legacy works, the default text does not contain the area, just the key
-        return "[" + key + "]";
+        return found != null ? ParseTokens(found, tokens) : $"[{key}]";
     }
+
+    private static string GetAlias(XElement element)
+        => element.GetAlias();
+
+    private static string GetRequiredAttributeValue(XElement element, string attributeName)
+        => element.Attribute(attributeName)?.Value ?? throw new InvalidOperationException($"The '{attributeName}' attribute is missing.");
+
+    private void LogWarning(string message)
+        => _logger.LogWarning(message);
+
+    
+}
+
+static class Extensions {
+    public static string GetAlias(this XElement element)
+        => GetRequiredAttributeValue(element, "alias");
+
+    public static string GetRequiredAttributeValue(this XElement element, string attributeName)
+        => element.Attribute(attributeName)?.Value ?? throw new InvalidOperationException($"The '{attributeName}' attribute is missing.");
+
 }
