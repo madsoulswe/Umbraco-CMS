@@ -688,7 +688,6 @@
     <key alias="concurrencyError">Methiant cydsyniadau optimistaidd, gwrthrych wedi'i addasu</key>
   </area>
   <area alias="general">
-    <key alias="options">Dewisiadau</key>
     <key alias="about">Amdano</key>
     <key alias="action">Gweithred</key>
     <key alias="actions">Gweithredoedd</key>
@@ -703,7 +702,6 @@
     <key alias="cancel">Canslo</key>
     <key alias="cellMargin">Ymyl cell</key>
     <key alias="choose">Dewis</key>
-    <key alias="clear">Clirio</key>
     <key alias="close">Cau</key>
     <key alias="closewindow">Cau Ffenest</key>
     <key alias="closepane">Cau Cwarel</key>
@@ -796,7 +794,6 @@
     <key alias="rename">Ailenwi</key>
     <key alias="renew">Adnewyddu</key>
     <key alias="required" version="7.0">Gofynnol</key>
-    <key alias="retrieve">Adfer</key>
     <key alias="retry">Ceisio eto</key>
     <key alias="rights">Hawliau</key>
     <key alias="scheduledPublishing">Cyhoeddi ar amserlen</key>
@@ -1314,7 +1311,6 @@ Er mwyn gweinyddu eich gwefan, agorwch swyddfa gefn Umbraco a dechreuwch ychwang
     <key alias="noConfigurationView">Nid oes gan y pecyn hwn unrhyw olwg cyfluniad</key>
     <key alias="noPackagesCreated">Nid oes unrhyw becynnau wedi'u creu eto</key>
     <key alias="packageContent">Cynnwys y Pecyn</key>
-    <key alias="packageLicense">Trwydded</key>
     <key alias="packageSearch">Chwilio am becynnau</key>
     <key alias="packageSearchResults">Canlyniadau ar gyfer</key>
     <key alias="packageNoResults">Ni allwn ddarganfod unrhyw beth ar gyfer</key>
@@ -1639,8 +1635,6 @@ Er mwyn gweinyddu eich gwefan, agorwch swyddfa gefn Umbraco a dechreuwch ychwang
     <key alias="enableUserSuccess">%0% yn awr wedi galluogi</key>
     <key alias="disableUserSuccess">%0% yn awr wedi analluogi</key>
     <key alias="setUserGroupOnUsersSuccess">Grwpiau defnyddiwr wedi'u gosod</key>
-    <key alias="deleteUserGroupsSuccess">Wedi dileu %0% o rwpiau defnyddwyr</key>
-    <key alias="deleteUserGroupSuccess">%0% wedi dileu</key>
     <key alias="unlockUsersSuccess">Wedi datgloi %0% o ddefnyddwyr</key>
     <key alias="unlockUserSuccess">%0% yn awr wedi datgloi</key>
     <key alias="memberExportedSuccess">Allforwyd yr aelod at ffeil</key>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<language alias="zh_tw" intName="Chinese (Taiwan)" localName="中文（正體，台灣）" lcid="0404" culture="zh-TW">
+<language alias="zh_tw" intName="Chinese (Taiwan)" localName="中文（正體，台灣）" lcid="1028" culture="zh-TW">
   <creator>
     <name>The Umbraco community</name>
     <link>https://docs.umbraco.com/umbraco-cms/extending/language-files</link>

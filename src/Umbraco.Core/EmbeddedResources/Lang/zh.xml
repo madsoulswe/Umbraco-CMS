@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<language alias="zh" intName="Chinese (Simple)" localName="中文（简体，中国）" lcid="0804" culture="zh-CN">
+<language alias="zh" intName="Chinese (Simple)" localName="中文（简体，中国）" lcid="2052" culture="zh-CN">
   <creator>
     <name>黄仁祥(wanddy@163.com)</name>
     <link>https://docs.umbraco.com/umbraco-cms/extending/language-files</link>

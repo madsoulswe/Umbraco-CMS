@@ -14,7 +14,6 @@
     <key alias="export">Exportera</key>
     <key alias="createGroup">Skapa grupp</key>
     <key alias="createPackage">Skapa paket</key>
-    <key alias="createblueprint">Skapa innehållsmall</key>
     <key alias="defaultValue">Standardvärde</key>
     <key alias="delete">Ta bort</key>
     <key alias="disable">Avaktivera</key>
@@ -200,7 +199,6 @@
     <key alias="clickToEdit">Klicka för att redigera detta objekt</key>
     <key alias="createBy">Skapad av</key>
     <key alias="createByDesc">Ursprunglig författare</key>
-    <key alias="updatedBy" version="7.0">Uppdaterad av</key>
     <key alias="createDate">Skapad</key>
     <key alias="createDateDesc">Datum/tid som dokumentet skapades</key>
     <key alias="documentType">Dokumenttyp</key>
